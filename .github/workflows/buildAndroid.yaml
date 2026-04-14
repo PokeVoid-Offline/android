@@ -30,6 +30,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Remove CapacitorUpdater import from main.ts
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'src/main.ts';
+            let content = fs.readFileSync(path, 'utf8');
+            content = content.replace(
+              /if\s*\(typeof\s*\(window as any\)\.Capacitor[^}]+import\([\"']@capgo\/capacitor-updater[\"']\)[^}]+\}\s*\}\s*\)/s,
+              ''
+            );
+            fs.writeFileSync(path, content);
+          "
+
+      - name: Remove CapacitorUpdater import from main.ts
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'src/main.ts';
+            let content = fs.readFileSync(path, 'utf8');
+            content = content.replace(
+              /if\s*\(typeof\s*\(window as any\)\.Capacitor[^}]+import\([\"']@capgo\/capacitor-updater[\"']\)[^}]+\}\s*\}\s*\)/s,
+              ''
+            );
+            fs.writeFileSync(path, content);
+          "
+
       - name: Build web app
         run: |
           pnpm exec vite build
