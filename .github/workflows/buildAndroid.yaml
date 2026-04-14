@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -29,6 +29,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+
+      - name: Debug main.ts before patch
+        run: tail -n 20 src/main.ts
 
       - name: Remove CapacitorUpdater import from main.ts
         run: |
@@ -42,6 +46,9 @@ jobs:
             );
             fs.writeFileSync(path, content);
           "
+
+      - name: Debug main.ts after patch
+        run: tail -n 20 src/main.ts
 
       - name: Build web app
         run: |
