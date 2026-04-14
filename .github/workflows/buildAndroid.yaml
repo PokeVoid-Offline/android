@@ -1,0 +1,113 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pokevoid source
+        uses: actions/checkout@v4
+        with:
+          repository: smittynugget/pokevoid
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build web app
+        run: |
+          pnpm exec vite build
+          rm -rf dist/pokesave
+
+      - name: Patch capacitor.config.ts
+        run: |
+          cat > capacitor.config.ts << 'EOF'
+          import type { CapacitorConfig } from "@capacitor/cli";
+
+          const config: CapacitorConfig = {
+            appId: "com.pokevoid.app",
+            appName: "PokéVoid",
+            webDir: "dist",
+            server: { androidScheme: "https" },
+            android: {
+              backgroundColor: "#000000",
+              allowMixedContent: false,
+              captureInput: true,
+              webContentsDebuggingEnabled: false,
+              loggingBehavior: "none",
+              useLegacyBridge: false,
+              initialFocus: true,
+              orientation: "landscape",
+            },
+            plugins: {
+              CapacitorUpdater: {
+                autoUpdate: false,
+              },
+            },
+          };
+
+          export default config;
+          EOF
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor CLI and Android platform
+        run: pnpm add -D @capacitor/cli @capacitor/android @capacitor/core
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Rename APK
+        run: |
+          VERSION="2.4.3.${{ github.run_number }}"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "pokevoid-${VERSION}.apk"
+          echo "APK_NAME=pokevoid-${VERSION}.apk" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.VERSION }}"
+          name: "PokéVoid ${{ env.VERSION }}"
+          body: |
+            Offline Android build of PokéVoid.
+
+            **Version:** ${{ env.VERSION }}
+            **Build:** ${{ github.run_number }}
+
+            Install by enabling *Unknown Sources* in your Android settings, then tap the APK to install.
+          files: ${{ env.APK_NAME }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
